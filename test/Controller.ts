@@ -39,12 +39,12 @@ describe("Controller", function () {
     const controller = await Controller.deploy();
 
     const commit: Reveal = {
-      tickerSymbol: "TEST",
-      orderType: OrderType.SELL,
+      tickerSymbol: "NVDA",
+      orderType: OrderType.BUY,
       accountType: AccountType.INSTITUTIONAL,
-      quantity: 200,
-      price: 10000,
-      timeInForce: new Date(2023, 7, 23).getTime(),
+      quantity: 1550,
+      price: 445,
+      timeInForce: new Date(2023, 7, 22, 23, 12, 6).getTime(),
       direction: Direction.LONG,
     };
 

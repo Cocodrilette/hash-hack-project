@@ -5,12 +5,27 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Controller is Ownable {
 
-    event makeCommit(bytes32 indexed hash, uint indexed blockNumber);
-    event makeReveal(bytes32 indexed hash, uint indexed blockNumber);
+    event MakeCommit(bytes32 indexed hash, uint indexed blockNumber);
+    event MakeReveal(bytes32 indexed hash, uint indexed blockNumber);
+    event InspestorAuthorized(address newInspector);
+
+    error RevealDoesNotMatch();
+    error TickerExpired(bytes32 hash);
 
     struct Commitment {
         bytes32 hash;
-        bool complete;
+        bool revealed;
+        uint blockId;
+    }
+
+    struct Reveal {
+        string tickerSymbol;
+        string orderType;
+        string accountType;
+        uint quantity;
+        uint price;
+        uint timeInForce;
+        Direction direction;
     }
 
     enum Direction {
@@ -18,18 +33,28 @@ contract Controller is Ownable {
         Long
     }
 
+    bytes32[] public hashes;
     mapping(bytes32 => Commitment) public commitments;
-    mapping(bytes32 => bool) public revealed;
+    mapping(bytes32 => Reveal) public reveals;
+    mapping(address => bool) public authorizedInspectors;
+
+    constructor() {
+        authorizedInspectors[msg.sender] = true;
+    }
 
     function commit(bytes32 hashOfOrder) external onlyOwner {
+        uint blockNumber = block.number;
+
         Commitment memory com = Commitment({
-            hash : hashOfOrder,
-            complete : false
+            hash: hashOfOrder,
+            revealed: false,
+            blockId: blockNumber
         });
         
+        hashes.push(com.hash);
         commitments[hashOfOrder] = com;
 
-        emit makeCommit(hashOfOrder,block.number);
+        emit MakeCommit(hashOfOrder,block.number);
     }
 
     function reveal(
@@ -50,12 +75,32 @@ contract Controller is Ownable {
             timeInForce,
             direction
         ));
-        require(hash == commitments[hash].hash);
 
-        commitments[hash].complete = true;
-        revealed[hash] = true;
+        if (hash != commitments[hash].hash) revert RevealDoesNotMatch();
+        if (timeInForce < block.timestamp) revert TickerExpired(hash);
+        
+        reveals[hash] = Reveal(
+            tickerSymbol,
+            orderType, 
+            accountType, 
+            quantity, 
+            price,
+            timeInForce,
+            direction
+        );
+        commitments[hash].revealed = true;
 
-        emit makeReveal(hash,block.number);
+        emit MakeReveal(hash,block.number);
     }
-    
+
+    function authorizeInspector(address addr) external onlyOwner {
+        authorizedInspectors[addr] = true;
+
+        emit InspestorAuthorized(addr);
+    }
+
+    function getHashes() public view onlyOwner returns(bytes32[] memory) {
+        return hashes;
+    }
+
 }

@@ -13,7 +13,13 @@ contract Controller is Ownable {
         bool complete;
     }
 
+    enum Direction {
+        Short, 
+        Long
+    }
+
     mapping(bytes32 => Commitment) public commitments;
+    mapping(bytes32 => bool) public revealed;
 
     function commit(bytes32 hashOfOrder) external onlyOwner {
         Commitment memory com = Commitment({
@@ -33,7 +39,7 @@ contract Controller is Ownable {
         uint quantity,
         uint price,
         uint timeInForce,
-        uint direction
+        Direction direction
     ) external onlyOwner {
         bytes32 hash = keccak256(abi.encode(
             tickerSymbol,
@@ -47,6 +53,7 @@ contract Controller is Ownable {
         require(hash == commitments[hash].hash);
 
         commitments[hash].complete = true;
+        revealed[hash] = true;
 
         emit makeReveal(hash,block.number);
     }
